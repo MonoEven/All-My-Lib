@@ -1,0 +1,10 @@
+#Include <ahkwin32\keyboardEmulation>
+#Include <ahkwin32\mmapfile>
+#Include <ahkwin32\odbc>
+#Include <ahkwin32\win32api>
+#Include <ahkwin32\win32com>
+#Include <ahkwin32\win32con>
+#Include <ahkwin32\win32file>
+#Include <ahkwin32\win32gui>
+#Include <ahkwin32\win32process>
+#Include <ahkwin32\win32ui>

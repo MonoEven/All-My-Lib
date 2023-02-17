@@ -6,7 +6,7 @@
 
 #Include <cv2\cv2>
 
-; 最新版本支持多线程
+; Newest Version Support MultiThreads
 ; cv2.setNumThreads(1)
 
 ; Access points to internal global namespaces.

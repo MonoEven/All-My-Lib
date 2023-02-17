@@ -2,9 +2,6 @@
 ; Version: v1.0.5
 ; Time: 2022.09.04
 
-#Include <std\init>
-#Include <ahktype\ahktype>
-
 cv2_file_path(filename)
 {
     if fileexist(format("{}\lib\{}", regread("HKLM\SOFTWARE\AutoHotkey", "InstallDir", ""), filename))
@@ -3948,7 +3945,8 @@ Class CV2 Extends OpenCV
         }
         
         SetMethod(src, size, value)
-        {            NewCols := Array()
+        {
+            NewCols := Array()
             
             x := size[1]
             y := size[2]

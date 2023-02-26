@@ -1,4 +1,4 @@
-﻿#Include <numahk\base\c_array>
+#Include <numahk\base\c_array>
 #Include <numahk\base\Generator>
 #Include <numahk\base\Parser>
 
@@ -60,11 +60,14 @@ NUMAHK_FLATSET(this, value)
 
 class numahk extends numahk_const
 {
+    static cv2_map := map("int8", "CV_8SC", "uint8", "CV_8UC", "int16", "CV_16SC", "uint16", "CV_16UC", "int32", "CV_32SC", "uint32", "CV_32UC", "float32", "CV_32FC", "float64", "CV_64FC")
+    
+    static type_dict := map("int8", 1, "uint8", 1, "int16", 2, "uint16", 2, "int32", 4, "uint32", 4, "int64", 8, "uint64", 8, "float32", 4, "float64", 8, "bool_", 1)
+    
     class ndarray
     {
         __new(_array, dtype := numahk.float64, isflat := false, is_c := false, length_c := 0)
         {
-            _dict := map("int8",1,"uint8",1,"int16",2,"uint16",2,"int32",4,"uint32",4,"int64",8,"uint64",8,"float32",4,"float64",8,"bool_",1)
             if !is_c
             {
                 if (_array is integer) || (_array is float)
@@ -76,7 +79,7 @@ class numahk extends numahk_const
                     this.ndim := 0
                     this.shape := []
                     this.size := 0
-                    this.itemsize := _dict[this.dtype]
+                    this.itemsize := numahk.type_dict[this.dtype]
                     this.nbytes := 0
                     this.strides := []
                     this.pos_strides := []
@@ -88,8 +91,8 @@ class numahk extends numahk_const
                     this.ndim := c_array.array_ndim(_array)
                     this.shape := isflat ? [_array.length] : c_array.array_shape(_array)
                     this.size := c_array.array_product(this.shape)
-                    this.itemsize := _dict[this.dtype]
-                    this.nbytes := this.size * _dict[this.dtype]
+                    this.itemsize := numahk.type_dict[this.dtype]
+                    this.nbytes := this.size * numahk.type_dict[this.dtype]
                     this.strides := c_array.array_strides(this.shape, this.dtype)
                     this.pos_strides := c_array.array_strides(this.shape, 1)
                 }
@@ -101,8 +104,8 @@ class numahk extends numahk_const
                 this.data := _array
                 this.shape := [length_c]
                 this.size := length_c
-                this.itemsize := _dict[this.dtype]
-                this.nbytes := this.size * _dict[this.dtype]
+                this.itemsize := numahk.type_dict[this.dtype]
+                this.nbytes := this.size * numahk.type_dict[this.dtype]
                 this.strides := c_array.array_strides(this.shape, this.dtype)
                 this.pos_strides := c_array.array_strides(this.shape, 1)
             }
@@ -190,10 +193,9 @@ class numahk extends numahk_const
         
         clone()
         {
-            _dict := map("int8",1,"uint8",1,"int16",2,"uint16",2,"int32",4,"uint32",4,"int64",8,"uint64",8,"float32",4,"float64",8,"bool_",1)
             dtype := this.dtype
             dtype := numahk.%dtype%
-            new_data := dllcall("Numahk\NDArray_Copy", "ptr", this.data, "int", this.size, "int", dtype, "int", _dict[this.dtype])
+            new_data := dllcall("Numahk\NDArray_Copy", "ptr", this.data, "int", this.size, "int", dtype, "int", numahk.type_dict[this.dtype])
             new_ndarray := numahk.ndarray(new_data, dtype, , true, this.size).resize(this.shape)
             new_ndarray.strides := this.strides
             new_ndarray.pos_strides := this.pos_strides
@@ -355,6 +357,23 @@ class numahk extends numahk_const
         {
             _json := {shape: this.shape, strides: this.strides, pos_strides: this.pos_strides, size: this.size, nbytes: this.nbytes, dtype: this.dtype, itemsize: this.itemsize, ndim: this.ndim}
             return Json_Generator(_json)
+        }
+        
+        tomat()
+        {
+            if this.shape.length > 3
+                return
+            if isset(cv2) && isset(memcpy)
+            {
+                height := this.shape[1]
+                width := this.shape[2]
+                depth := this.shape.length = 3 ? this.shape[3] : 1
+                bits := numahk.type_dict[this.dtype]
+                bytes := height * width * depth * bits
+                mat := cv2.mat.zeros(height, width, cv2.%numahk.cv2_map[this.dtype] depth%)
+                memcpy(mat.data, this.data, bytes)
+                return mat
+            }
         }
         
         tostring()
@@ -692,7 +711,6 @@ class numahk extends numahk_const
     
     static broadcast(ndarray1, ndarray2)
     {
-        _dict := map("int8",1,"uint8",1,"int16",2,"uint16",2,"int32",4,"uint32",4,"int64",8,"uint64",8,"float32",4,"float64",8,"bool_",1)
         new_shape := (ndarray1.ndim > ndarray2.ndim) ? ndarray1.shape.clone() : ndarray2.shape.clone()
         flag := dllcall("Numahk\NUMAHK_NEWSHAPE", "ptr", numget(objptr(ndarray1.shape), 0x20, "ptr"), "ptr", numget(objptr(ndarray2.shape), 0x20, "ptr"), "ptr", numget(objptr(new_shape), 0x20, "ptr"), "int", ndarray1.ndim, "int", ndarray2.ndim)
         if !flag
@@ -710,8 +728,8 @@ class numahk extends numahk_const
         ndarray1.ndim := new_shape.length
         ndarray1.shape := new_shape.clone()
         ndarray1.size := c_array.array_product(ndarray1.shape)
-        ndarray1.itemsize := _dict[ndarray1.dtype]
-        ndarray1.nbytes := ndarray1.size * _dict[ndarray1.dtype]
+        ndarray1.itemsize := numahk.type_dict[ndarray1.dtype]
+        ndarray1.nbytes := ndarray1.size * numahk.type_dict[ndarray1.dtype]
         ndarray1.strides := c_array.array_strides(ndarray1.shape, ndarray1.dtype)
         ndarray1.pos_strides := c_array.array_strides(ndarray1.shape, 1)
         strides := c_array.array_strides(ndarray2_shape, 1)
@@ -721,8 +739,8 @@ class numahk extends numahk_const
         ndarray2.ndim := new_shape.length
         ndarray2.shape := new_shape.clone()
         ndarray2.size := c_array.array_product(ndarray2.shape)
-        ndarray2.itemsize := _dict[ndarray2.dtype]
-        ndarray2.nbytes := ndarray1.size * _dict[ndarray2.dtype]
+        ndarray2.itemsize := numahk.type_dict[ndarray2.dtype]
+        ndarray2.nbytes := ndarray1.size * numahk.type_dict[ndarray2.dtype]
         ndarray2.strides := c_array.array_strides(ndarray2.shape, ndarray2.dtype)
         ndarray2.pos_strides := c_array.array_strides(ndarray2.shape, 1)
     }
@@ -1311,8 +1329,7 @@ class numahk extends numahk_const
         if index - AHK_FLAG >= ndarray.size
             throw error(format("IndexError: index {} is out of bounds for axis 0 with size {}", index, ndarray.size))
         dtype := ndarray.dtype
-        _dict := map("int8",1,"uint8",1,"int16",2,"uint16",2,"int32",4,"uint32",4,"int64",8,"uint64",8,"float32",4,"float64",8,"bool_",1)
-        numput(numahk.ahktype(numahk.%dtype%), value, ndarray.data, (index - AHK_FLAG) * _dict[dtype])
+        numput(numahk.ahktype(numahk.%dtype%), value, ndarray.data, (index - AHK_FLAG) * numahk.type_dict[dtype])
         return ndarray
     }
     
@@ -1351,7 +1368,7 @@ class numahk extends numahk_const
         new_ndarray := numahk.ndarray(new_data, dtype, , true, ndarray.size)
         new_ndarray.ndim := shape.length
         new_ndarray.shape := shape
-        new_ndarray.strides := c_array.array_strides(shape, dtype)
+        new_ndarray.strides := c_array.array_strides(shape, ndarray.dtype)
         new_ndarray.pos_strides := c_array.array_strides(shape, 1)
         return new_ndarray
     }

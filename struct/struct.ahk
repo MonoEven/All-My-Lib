@@ -335,7 +335,7 @@ class union
     __new(member_array := [], type_map := {})
     {
         this.warning := ""
-        this.members := member_array is string ? union.eval(member_array) : member_array
+        this.members := member_array is string ? union.eval(member_array)[1] : member_array
         this.type_map := type_map
         this.align()
         this.members := this.rebuild()

@@ -1,6 +1,6 @@
-﻿; Author: Mono
-; Version: v1.0.5
-; Time: 2022.09.04
+; Author: Mono
+; Version: v1.1.0
+; Time: 2023.02.26
 
 cv2_file_path(filename)
 {
@@ -30,7 +30,7 @@ Catch
 Dllcall("SetDllDirectory", "Str", A_ScriptDir)
 
 Class OpenCV
-{
+{    
     Static True := ComValue(0xB, -1)
     Static False := ComValue(0xB, 0)
 	Static CV_PI := 3.1415926535897932384626433832795
@@ -3369,7 +3369,11 @@ Class CV2 Extends OpenCV
             MAT_.MAT := CV2.MAT_Init().Create(param[1], param[2], cvtype)
             MAT_.Shape := [MAT_.MAT.Rows, MAT_.MAT.Cols, MAT_.MAT.Channels]
             MAT_.At := CV2.MAT.At(MAT_)
-            
+            if param.length = index
+            {
+                tomat(MAT_, MAT_.MAT)
+                return MAT_
+            }
             if param[index + 1] is Array
             {
                 Loop param[index + 1].Length
@@ -4003,6 +4007,35 @@ Class CV2 Extends OpenCV
             Return dst
         }
         
+        toNumahk()
+        {
+            if isset(numahk)
+            {
+                Switch this.Type
+                {
+                    Case cv2.CV_8SC1, cv2.CV_8SC2, cv2.CV_8SC3, cv2.CV_8SC4:
+                        dtype := numahk.int8
+                    Case cv2.CV_8UC1, cv2.CV_8UC2, cv2.CV_8UC3, cv2.CV_8UC4:
+                        dtype := numahk.uint8
+                    Case cv2.CV_16SC1, cv2.CV_16SC2, cv2.CV_16SC3, cv2.CV_16SC4:
+                        dtype := numahk.int16
+                    Case cv2.CV_16UC1, cv2.CV_16UC2, cv2.CV_16UC3, cv2.CV_16UC4:
+                        dtype := numahk.uint16
+                    Case cv2.CV_32SC1, cv2.CV_32SC2, cv2.CV_32SC3, cv2.CV_32SC4:
+                        dtype := numahk.int32
+                    Case cv2.CV_32UC1, cv2.CV_32UC2, cv2.CV_32UC3, cv2.CV_32UC4:
+                        dtype := numahk.uint32
+                    Case cv2.CV_32FC1, cv2.CV_32FC2, cv2.CV_32FC3, cv2.CV_32FC4:
+                        dtype := numahk.float32
+                    Case cv2.CV_64FC1, cv2.CV_64FC2, cv2.CV_64FC3, cv2.CV_64FC4:
+                        dtype := numahk.float64
+                }
+                ndarray := numahk.zeros(this.Total * this.Channels, dtype)
+                memcpy(ndarray.data, this.Data, this.Total * this.Channels * numahk.type_dict[ndarray.dtype])
+                return ndarray.resize(this.Shape)
+            }
+        }
+        
         Static Zeros(rows, cols, type := -1)
         {
             src := CV2.MAT()
@@ -4078,6 +4111,27 @@ Class CV2 Extends OpenCV
                 loop flag
                     NumPut("UChar", value[A_Index], this.At.Data, x * this.At.Width * flag + y * flag + A_Index - 1)
             }
+        }
+        
+        ToString()
+        {
+            return format("
+            (
+                CV2.MAT
+                Channels: {}
+                Data: {}
+                Depth: {}
+                Height: {}
+                Shape: [{}, {}, {}]
+                Size: [{}, {}]
+                Step1: {}
+                Total: {}
+                Type: {}
+                Width: {}
+                Cols: {}
+                Dims: {}
+                Rows: {}
+            )", this.Channels, this.Data, this.Depth, this.Height, this.Rows, this.Cols, this.Channels, this.Rows, this.Cols, this.Step1, this.Total, this.Type, this.Width, this.Cols, this.Dims, this.Rows)
         }
     }
     
@@ -4346,30 +4400,6 @@ matToBitmap(img)
     DllCall("gdiplus\GdipCreateBitmapFromScan0", "Int", img.Cols, "Int", img.Rows, "Int", img.Step1, "Int", 2498570, "Ptr", img.data, "Ptr*", &pBitmap := 0)
     
     Return pBitmap
-}
-
-matToArray(img)
-{
-    arr := []
-    flag := (img.Type // 8) + 1
-    loop img.Width * img.Height
-    {
-        tmp := []
-        index := A_Index
-        loop flag
-            tmp.push(img.MAT.at(index * flag + A_Index - 1))
-        arr.push(tmp)
-    }
-    
-    Return arr
-}
-
-matToNumahk(img)
-{
-    arr := matToArray(img)
-    
-    if isSet(Numahk)
-        Return Numahk.array(arr)
 }
 
 multiple(Lst, Number)
@@ -4670,6 +4700,11 @@ sprintf(fs, args*)
     s := Format(fs, args*)
     
     Return s
+}
+
+memcpy(target, source, bytes)
+{
+    DllCall("Ntdll\memcpy", "ptr", target, "ptr", source, "uint", bytes)
 }
 
 toMat(src, img)

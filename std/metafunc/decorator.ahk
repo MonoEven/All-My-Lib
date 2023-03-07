@@ -1,5 +1,5 @@
-﻿decorator(base, _func, args*)
+decorator(base, _func)
 {
     static defprop := {}.defineprop
-    defprop(_func, "call", {call: base((func.prototype.call).bind(_func), args*)})
+    defprop(_func, "call", {call: base((func.prototype.call).bind(_func))})
 }
